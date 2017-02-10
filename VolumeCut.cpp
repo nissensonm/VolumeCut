@@ -4,20 +4,19 @@
 #include <vector>
 #include <sstream>
 
-
 #include "include/protein.h"
 #include "include/skeleton_overall.h"
 #include "include/MRC.h"
 
 using namespace std;
 
-// Finds points 
+// Generates coordinates along a backbone chain. See function for details. 
 void cutVolumeAroundChain(Protein pdb, Map mrcF, Map & outMap, vector<Coordinate> axis, float distance, float apixX, float apixY, float apixZ);
 
 // Helper function to determine time taken in MS.
 int getTimeTakenInMS(struct timeval &start, struct timeval &end); 
 
-// Display strings to users. Also does some error checking if MRC or PDB file are bad. 
+// Display chains to users. Also does some error checking if MRC or PDB file are not formatted correctly. 
 string getChainToCut(string pdbString);
 
 // Generate the trace to define spheres and cut volume from.
@@ -33,20 +32,22 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	// Declaring variables at the outset. 
 	string pdbStr, mrcStr, pdbOUTStr, mrcOUTStr, chainID;
-	Protein pdb;		//protein structure in xyz coordinate
+	Protein pdb;		
 	Map inMRC, outMRC;
-
-	vector<Coordinate> axis;
-    float apixX=1, apixY=1, apixZ=1;		//apix ratio...default 1.0
+    float apixX=1, apixY=1, apixZ=1;
 	float radius = 1;
 	float resolution;
 	
-	struct timeval start, end, totalStart, totalEnd;
-    long mtime;    
+	// Axis holds the coordinates along the backbone chain that volume is cut around. 
+	vector<Coordinate> axis;
 	
+	struct timeval totalStart, totalEnd;
+    long mtime;    
 	gettimeofday(&totalStart, NULL);
-	// Error handling for PDB and MRC done when the file is read in.
+	
+	// Error handling for PDB and MRC parameters done when the file is read in later.
 	pdbStr = argv[1];
 	mrcStr = argv[2];
 	
@@ -77,7 +78,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	
-	// Read in the PDB file with the matching chain information.
+	// Read in the PDB file with the matching chain information retrieved from getChainToCut().
 	cout<<"Reading in PDB File w/ Selected Chain."<<endl;
 	pdb.read(pdbStr + ".pdb", chainID);
 	
@@ -100,32 +101,29 @@ int main(int argc, char *argv[])
 	outMRC.hdr = inMRC.hdr;
 	outMRC.createCube(inMRC.numRows(), inMRC.numCols(), inMRC.numSlcs());
 
-	// Start actual volume cutting. 
-	gettimeofday(&start, NULL);
-		
 	// Select the points along the backbone to cut. 
 	// If the resolution is considered medium, 
 	//	we cut down the middle of the helicies.
 	// Otherwise, trace point to point for helicies.
 	generateTraceToCutAlong(axis, pdb, resolution);
 		
-	cout << "APIX " << apixX << endl;
 	// Write all points along the axis. 
 	cutVolumeAroundChain(pdb, inMRC, outMRC, axis, radius, apixX, apixY, apixZ);
-	gettimeofday(&end, NULL);
-	// cout << "Time Taken to cut volume: " << getTimeTakenInMS(start, end) << " ms" << endl;
-	
 	
 	cout<< "Writing MRC Cut file as " << mrcOUTStr << endl;
     outMRC.write(mrcOUTStr);
 	
 	gettimeofday(&totalEnd, NULL);
-	cout << "End-to-end time: " << getTimeTakenInMS(totalStart, totalEnd) << " ms" << endl;
+	cout << "End-to-end time to run: " << getTimeTakenInMS(totalStart, totalEnd) << " ms" << endl;
 
 	return 0;
 }
 
 // Generate the backbone trace. 
+// Note that for volume surrounding helices,
+// medium resolution data is cut differently than high resolution data.
+// High ( < 5 A ) -> Cut Volume point to point.
+// Medium ( > 5 A ) -> Cut Volume from center of a helix.
 void generateTraceToCutAlong(vector<Coordinate> &axis, Protein &pdb, int resolution)
 {
 	// If high resolution ( resolution is less than 5 A ) 
@@ -162,7 +160,7 @@ void generateTraceToCutAlong(vector<Coordinate> &axis, Protein &pdb, int resolut
 		// Find all indicies that are NOT part of a helix and store them
 		if (pdb.hlces.size()){
 			int i = 0;
-			// Check + store first loops 
+			// Find + store starting loops indicies
 			loopIndces.first = 0;
 			loopIndces.second = pdb.hlces [0].startIndx -1;
 			if (loopIndces.second >= loopIndces.first)
@@ -211,19 +209,12 @@ void generateTraceToCutAlong(vector<Coordinate> &axis, Protein &pdb, int resolut
 	}
 }
 
-// Calculate the time taken, returns ms taken as an int. 
-int getTimeTakenInMS(struct timeval &start, struct timeval &end) 
-{
-	long seconds, useconds;    
-	seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-    return ((seconds) * 1000 + useconds/1000.0) + 0.5;
-}
-
-// Cuts volume around the points along the axis that were passed in.
+// Cuts volume around the points along the axis that was passed in.
+// Does so by defining a sphere around each coordinate on the axis, then 
+//	only copies voxels inside each sphere to the output MRC file 
 void cutVolumeAroundChain(Protein pdb, Map mrcF, Map & outMap, vector<Coordinate> axis, float radius, float apixX, float apixY, float apixZ)
 {
-	Coordinate p, pnew;
+	Coordinate p;
 	
 	// Set up a flag for each possible location in the MRC file. 
 	// Used so we only need to check distances if the location has already been written to.
@@ -239,6 +230,7 @@ void cutVolumeAroundChain(Protein pdb, Map mrcF, Map & outMap, vector<Coordinate
 		// Pick the upper and lower bounds in the MRC file to examine for x, y, and z coordinates.
 		// This allows us to only have to examine a very narrow box of points surrounding the individual point,
 		//	rather than comparing distances across the entire MRC file.
+		// This effectively inscribes the sphere inside a sphere so we only need to check the minimum number of voxels. 
 		minCoordinate[0] = axis[j].x - radius;
 		maxCoordinate[0] = axis[j].x + radius;
 		
@@ -265,8 +257,6 @@ void cutVolumeAroundChain(Protein pdb, Map mrcF, Map & outMap, vector<Coordinate
 		if ((maxCoordinate[2] - mrcF.hdr.zorigin) / apixZ > mrcF.numSlcs())
 			maxCoordinate[2] = mrcF.numSlcs() * apixZ + mrcF.hdr.zorigin;
 		
-		//cout << maxCoordinate[0] - mrcF.hdr.xorigin << " " << maxCoordinate[1] - mrcF.hdr.yorigin << " " << maxCoordinate[2] - mrcF.hdr.zorigin << endl;
-
 		for (float x=minCoordinate[0]; x<maxCoordinate[0]; x++){
 			p.x = x;
 			for (float y=minCoordinate[1]; y<maxCoordinate[1]; y++){
@@ -299,7 +289,8 @@ void cutVolumeAroundChain(Protein pdb, Map mrcF, Map & outMap, vector<Coordinate
 	}	
 }
 
-
+// Finds all chains that exist in a PDB file and finds if the chain is unique or a duplicate.
+// Also finds the size of each chain. 
 string getChainToCut(string pdbStr)
 {
 	string chainID;
@@ -314,9 +305,6 @@ string getChainToCut(string pdbStr)
 	pdb.read(pdbStr + ".pdb");
 	for (int i = 0; i < pdb.header.size(); i++)
 	{
-		// First find 
-		//string hdrPrefix = pdb.header[i].substr(0, pdb.header[i].find(' '));
-		//cout << hdrPrefix << endl;
 		// Find all parts of the header that have chains listed. 
 		int indexStartOfChain = pdb.header[i].find("CHAIN:"); 		
 		if (indexStartOfChain != string::npos)
@@ -370,7 +358,6 @@ string getChainToCut(string pdbStr)
 	cout << "Chain\t# Atoms\t# Amino Acid\tDuplicate Chains " << endl;
 	for (int i = 0; i < chains.size(); i++)
 	{
-		//cout << "NON-DUPE CHAIN: " << chains[i][0] << endl;
 		cout << chains[i][0] << "\t" << sizeOfChainsAtoms[i] <<"\t"<< sizeOfChainsAA[i] << "\t\t";
 		
 		if (chains[i].size() == 1)
@@ -414,3 +401,12 @@ string getChainToCut(string pdbStr)
 	//	an existing chain). Return following string to notify main so we exit. 
 	return "BADSELECTION";
 } 
+
+// Calculate the time taken, returns ms taken as an int. 
+int getTimeTakenInMS(struct timeval &start, struct timeval &end) 
+{
+	long seconds, useconds;    
+	seconds  = end.tv_sec  - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+    return ((seconds) * 1000 + useconds/1000.0) + 0.5;
+}

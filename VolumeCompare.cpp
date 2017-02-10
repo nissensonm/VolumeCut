@@ -10,11 +10,11 @@
 
 using namespace std;
 
-// Values used to define which threshold to take. Keeping at 0.25 for now.
+// Define threshold to filter noise.
 float const THRESHOLD_ORIGINAL = 0.25;
 float const THRESHOLD_SIM = 0.25; 
 
-// Just calculate Hausdorff distance
+// Calculate the Hausdorff distance
 float calculateHausdorff(vector<Coordinate> &setA, vector<Coordinate> &setB); 
 
 int getTimeTakenInMS(struct timeval &start, struct timeval &end);
@@ -104,7 +104,6 @@ int main(int argc, char *argv[])
 	cout << "One Sided Hausdorff Distance Simulated to Original Data: " << calculateHausdorff(maskSimCoordinates, originalCoordinates) << endl;
 	gettimeofday(&end, NULL);
 	
-	//cout << "Time Taken to calculate distance (does not include time it took to read in a file, just from normalizing to current): " << getTimeTakenInMS(start, end) << " ms" << endl;
 	cout << "OSHD Time: " << getTimeTakenInMS(start, end) << " total time: " << getTimeTakenInMS(startTotal, end) << endl;
 	
 } 
