@@ -11,6 +11,19 @@ def cutvol(pdb_loaded_num, mrc_loaded_num, radius, resolution, chain):
     path_pdb = str(chimera.openModels.list()[pdb_loaded_num].openedAs[0])
     path_mrc = str(chimera.openModels.list()[mrc_loaded_num].openedAs[0])
 
+ # # Define the path to the executable.
+# path_to_volcut = str(os.path.realpath(__file__))
+# path_to_volcut = path_to_volcut[0:len(path_to_volcut) - 3]
+# print path_to_volcut
+# path_to_volcut = "\"" + path_to_volcut + ".exe\""
+# print path_to_volcut
+# type(path_to_volcut)
+# # Set up args to pass to binary
+# args = (str(path_to_volcut), path_pdb, path_mrc, str(radius), str(resolution), chain)
+
+	# Run the binary to cut file, wait for it to finish, print output
+    popen = subprocess.Popen(args, stdout=subprocess.PIPE)
+	
     # Set up args to pass to binary
     args = ("VolCut.exe", path_pdb, path_mrc, str(radius), str(resolution), chain)
 
