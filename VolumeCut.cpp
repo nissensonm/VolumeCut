@@ -5,16 +5,12 @@
 #include <sstream>
 
 #include "include/protein.h"
-#include "include/skeleton_overall.h"
-#include "include/MRC.h"
+#include "include/mrc.h"
 
 using namespace std;
 
 // Generates coordinates along a backbone chain. See function for details. 
 void cutVolumeAroundChain(Protein pdb, Map mrcF, Map & outMap, vector<Coordinate> axis, float distance, float apixX, float apixY, float apixZ);
-
-// Helper function to determine time taken in MS.
-int getTimeTakenInMS(struct timeval &start, struct timeval &end); 
 
 // Display chains to users. Also does some error checking if MRC or PDB file are not formatted correctly. 
 string getChainToCut(string pdbString);
@@ -31,7 +27,7 @@ int main(int argc, char *argv[])
 		cout << "PDBFileName MRCFileName Radius MRCResolution\n";
 		return -1;
 	}
-
+	
 	// Declaring variables at the outset. 
 	string pdbStr, mrcStr, pdbOUTStr, mrcOUTStr, chainID;
 	Protein pdb;		
@@ -42,10 +38,6 @@ int main(int argc, char *argv[])
 	
 	// Axis holds the coordinates along the backbone chain that volume is cut around. 
 	vector<Coordinate> axis;
-	
-	struct timeval totalStart, totalEnd;
-    long mtime;    
-	gettimeofday(&totalStart, NULL);
 	
 	// Error handling for PDB and MRC parameters done when the file is read in later.
 	pdbStr = argv[1];
@@ -113,9 +105,6 @@ int main(int argc, char *argv[])
 	cout<< "Writing MRC Cut file as " << mrcOUTStr << endl;
     outMRC.write(mrcOUTStr);
 	
-	gettimeofday(&totalEnd, NULL);
-	cout << "End-to-end time to run: " << getTimeTakenInMS(totalStart, totalEnd) << " ms" << endl;
-
 	return 0;
 }
 
@@ -401,12 +390,3 @@ string getChainToCut(string pdbStr)
 	//	an existing chain). Return following string to notify main so we exit. 
 	return "BADSELECTION";
 } 
-
-// Calculate the time taken, returns ms taken as an int. 
-int getTimeTakenInMS(struct timeval &start, struct timeval &end) 
-{
-	long seconds, useconds;    
-	seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-    return ((seconds) * 1000 + useconds/1000.0) + 0.5;
-}
