@@ -1,5 +1,14 @@
+Paper Citation with more information:
+Nissenson, Michael & Si, Dong. (2017). Automated Protein Chain Isolation from 3D Cryo-EM Data and Volume Comparison Tool. 685-690. 10.1145/3107411.3107500. 
+
+Important Note: If your trying to isolate the volume around a mmCIF file, please use the following online converter tool to convert it to a PDF file-
+http://mmcif.pdbj.org/converter/index.php?l=en
+There are known bugs that may occur if another tool (such as Chimera or Open Babel) is used to convert between the file types.
+
+
 # Volume Cut and Volume Compare
-Currently contains the source code for Volume Cut and Volume Compare. 
+Currently contains the source code for Volume Cut and Volume Compare and all includes that are required to run it. 
+
 Compiled Source Code can be found in /LinuxCompiled folder.
 
 UCSF Chimera extension module can be found in the VolumeCut_ChimeraExtension_Windows folder. Below are step-by-step installation instructions:
